@@ -1,0 +1,12 @@
+{
+  "name": "yuianon",
+  "version": "1.0.0",
+  "description": "Mensajes anonimos - crea un hilo y comparte el enlace",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
