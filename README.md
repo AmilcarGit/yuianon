@@ -20,7 +20,7 @@ git push -u origin main
 ```
 pkg update -y
 pkg install -y nodejs git
-git clone https://github.com/TU_USUARIO/yuianon.git
+git clone https://github.com/AmilcarGit/yuianon.git
 cd yuianon
 npm install
 ```
