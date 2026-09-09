@@ -163,6 +163,11 @@
           <input id="link" readonly>
           <button id="copiar">Copiar</button>
         </div>
+        <p style="margin-top:14px;color:#c9853f;">Guarda esta clave — es la única forma de borrar el hilo después:</p>
+        <div class="linkrow">
+          <input id="clave" readonly>
+          <button id="copiarClave">Copiar</button>
+        </div>
         <a class="goto" id="ver" href="#">Ver el hilo →</a>
       </div>
     </div>
@@ -178,6 +183,8 @@
   const linkInput = document.getElementById('link');
   const copiarBtn = document.getElementById('copiar');
   const verLink = document.getElementById('ver');
+  const claveInput = document.getElementById('clave');
+  const copiarClaveBtn = document.getElementById('copiarClave');
 
   ta.addEventListener('input', () => { n.textContent = ta.value.length; });
 
@@ -198,9 +205,10 @@
       const url = `${location.origin}/hilo/${data.id}`;
       linkInput.value = url;
       verLink.href = url;
+      claveInput.value = data.clave;
       result.classList.add('show');
     } catch (e) {
-      alert('No se pudo crear el hilo. Intenta de nuevo.');
+      alert(e.message || 'No se pudo crear el hilo. Intenta de nuevo.');
     } finally {
       btn.disabled = false;
       btn.textContent = 'Crear enlace';
@@ -212,6 +220,14 @@
     navigator.clipboard.writeText(linkInput.value).then(() => {
       copiarBtn.textContent = 'Copiado';
       setTimeout(() => { copiarBtn.textContent = 'Copiar'; }, 1500);
+    });
+  });
+
+  copiarClaveBtn.addEventListener('click', () => {
+    claveInput.select();
+    navigator.clipboard.writeText(claveInput.value).then(() => {
+      copiarClaveBtn.textContent = 'Copiado';
+      setTimeout(() => { copiarClaveBtn.textContent = 'Copiar'; }, 1500);
     });
   });
 </script>
