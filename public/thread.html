@@ -95,6 +95,27 @@
 
   .empty, .error{ text-align:center; color: var(--ink-dim); padding: 40px 0; }
 
+  .actions{
+    display:flex;
+    gap: 8px;
+    justify-content:center;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .btnSec{
+    background: var(--bg-soft);
+    color: var(--ink-dim);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-family: 'Sora', sans-serif;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+  .btnSec:hover{ color: var(--ink); border-color: var(--glow); }
+  .btnSec.active{ color: var(--glow); border-color: var(--glow); }
+  .btnSec.danger:hover{ color: #e78a8a; border-color: #e78a8a; }
+
   .foot{ text-align:center; margin-top: 30px; }
   .foot a{ color: var(--glow); text-decoration:none; font-size: 0.85rem; }
 </style>
@@ -102,6 +123,11 @@
 <body>
   <div class="wrap">
     <div class="mark"><div class="word">Yui<span>Anon</span></div></div>
+
+    <div class="actions" id="actions" style="display:none">
+      <button id="avisar" class="btnSec">🔔 Avisarme de nuevas respuestas</button>
+      <button id="borrar" class="btnSec danger">Eliminar hilo</button>
+    </div>
 
     <div id="hilo"><div class="empty">Cargando…</div></div>
 
@@ -121,6 +147,13 @@
   const replyBox = document.getElementById('replyBox');
   const respuesta = document.getElementById('respuesta');
   const enviarBtn = document.getElementById('enviar');
+  const actions = document.getElementById('actions');
+  const avisarBtn = document.getElementById('avisar');
+  const borrarBtn = document.getElementById('borrar');
+
+  let ultimoConteo = null;
+  let avisosActivos = false;
+  let intervaloAviso = null;
 
   function fecha(ts){
     return new Date(ts).toLocaleString();
@@ -136,21 +169,74 @@
       hiloEl.appendChild(div);
     });
     replyBox.style.display = 'block';
+    actions.style.display = 'flex';
+    ultimoConteo = hilo.mensajes.length;
   }
 
-  async function cargar(){
+  async function cargar(silencioso){
     try {
       const res = await fetch(`/api/hilos/${id}`);
       if (!res.ok) {
-        hiloEl.innerHTML = '<div class="error">Este hilo no existe o fue eliminado.</div>';
+        if (!silencioso) hiloEl.innerHTML = '<div class="error">Este hilo no existe o fue eliminado.</div>';
         return;
       }
       const hilo = await res.json();
+
+      if (avisosActivos && ultimoConteo !== null && hilo.mensajes.length > ultimoConteo) {
+        const nuevas = hilo.mensajes.length - ultimoConteo;
+        if (Notification.permission === 'granted') {
+          new Notification('YuiAnon', { body: `Tienes ${nuevas} respuesta(s) nueva(s)` });
+        }
+      }
       render(hilo);
     } catch (e) {
-      hiloEl.innerHTML = '<div class="error">No se pudo cargar el hilo.</div>';
+      if (!silencioso) hiloEl.innerHTML = '<div class="error">No se pudo cargar el hilo.</div>';
     }
   }
+
+  avisarBtn.addEventListener('click', async () => {
+    if (avisosActivos) {
+      avisosActivos = false;
+      clearInterval(intervaloAviso);
+      avisarBtn.textContent = '🔔 Avisarme de nuevas respuestas';
+      avisarBtn.classList.remove('active');
+      return;
+    }
+    if (!('Notification' in window)) {
+      alert('Tu navegador no soporta notificaciones.');
+      return;
+    }
+    const permiso = await Notification.requestPermission();
+    if (permiso !== 'granted') {
+      alert('No diste permiso para notificaciones.');
+      return;
+    }
+    avisosActivos = true;
+    avisarBtn.textContent = '🔔 Avisos activados';
+    avisarBtn.classList.add('active');
+    intervaloAviso = setInterval(() => cargar(true), 8000);
+  });
+
+  borrarBtn.addEventListener('click', async () => {
+    const clave = prompt('Escribe la clave de borrado que se te dio al crear este hilo:');
+    if (!clave) return;
+    try {
+      const res = await fetch(`/api/hilos/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clave })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'No se pudo eliminar el hilo.');
+        return;
+      }
+      alert('Hilo eliminado.');
+      location.href = '/';
+    } catch (e) {
+      alert('No se pudo eliminar el hilo.');
+    }
+  });
 
   enviarBtn.addEventListener('click', async () => {
     const mensaje = respuesta.value.trim();
@@ -163,11 +249,13 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mensaje })
       });
-      if (!res.ok) throw new Error();
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '');
       respuesta.value = '';
-      await cargar();
+      if (typeof data.total === 'number') ultimoConteo = data.total; // evita autonotificarse
+      await cargar(true);
     } catch (e) {
-      alert('No se pudo enviar la respuesta.');
+      alert(e.message || 'No se pudo enviar la respuesta.');
     } finally {
       enviarBtn.disabled = false;
       enviarBtn.textContent = 'Responder';
